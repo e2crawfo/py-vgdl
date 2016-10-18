@@ -13,4 +13,3 @@ def upload(file_name):
     args.append("-c")
     args.append("Tech")
     yu.external_main(args)
-    

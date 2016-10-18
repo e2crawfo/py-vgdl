@@ -49,4 +49,6 @@ BasicGame
 
 if __name__ == "__main__":
     from vgdl.core import VGDLParser
+    import pdb
+    pdb.set_trace()
     VGDLParser.playGame(zelda_game, zelda_level)    

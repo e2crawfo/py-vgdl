@@ -20,19 +20,18 @@ class VGDLParser(object):
     verbose = False
 
     @staticmethod
-    def playGame(game_str, map_str, headless = False, persist_movie = False, movie_dir = "./tmpl"):
+    def playGame(game_str, map_str, headless=False, persist_movie=False, movie_dir="./tmpl"):
         """ Parses the game and level map strings, and starts the game. """
         g = VGDLParser().parseGame(game_str)
         g.buildLevel(map_str)
         g.uiud = uuid.uuid4()
         if(headless):
-            g.startGameExternalPlayer(headless, persist_movie, movie_dir )
+            g.startGameExternalPlayer(headless, persist_movie, movie_dir)
             #g.startGame(headless,persist_movie)
         else:
-            g.startGame(headless,persist_movie)
+            g.startGame(headless, persist_movie)
 
         return g
-
 
     @staticmethod
     def playSubjectiveGame(game_str, map_str):
@@ -72,7 +71,7 @@ class VGDLParser(object):
         """ Whatever is visible in the global namespace (after importing the ontologies)
         can be used in the VGDL, and is evaluated.
         """
-        from ontology import * #@UnusedWildImport
+        from ontology import *  # @UnusedWildImport
         return eval(estr)
 
     def parseInteractions(self, inodes):
@@ -80,8 +79,8 @@ class VGDLParser(object):
             if ">" in inode.content:
                 pair, edef = [x.strip() for x in inode.content.split(">")]
                 eclass, args = self._parseArgs(edef)
-                self.game.collision_eff.append(tuple([x.strip() for x in pair.split(" ") if len(x)>0]
-                                                     +[eclass, args]))
+                self.game.collision_eff.append(tuple([x.strip() for x in pair.split(" ") if len(x) > 0]
+                                                     + [eclass, args]))
                 if self.verbose:
                     print "Collision", pair, "has effect:", edef
 
@@ -97,9 +96,9 @@ class VGDLParser(object):
             assert ">" in sn.content
             key, sdef = [x.strip() for x in sn.content.split(">")]
             sclass, args = self._parseArgs(sdef, parentclass, parentargs.copy())
-            stypes = parenttypes+[key]
+            stypes = parenttypes + [key]
             if 'singleton' in args:
-                if args['singleton']==True:
+                if args['singleton'] == True:
                     self.game.singletons.append(key)
                 args = args.copy()
                 del args['singleton']
@@ -120,12 +119,12 @@ class VGDLParser(object):
             c, val = [x.strip() for x in mn.content.split(">")]
             assert len(c) == 1, "Only single character mappings allowed."
             # a char can map to multiple sprites
-            keys = [x.strip() for x in val.split(" ") if len(x)>0]
+            keys = [x.strip() for x in val.split(" ") if len(x) > 0]
             if self.verbose:
                 print "Mapping", c, keys
             self.game.char_mapping[c] = keys
 
-    def _parseArgs(self, s,  sclass=None, args=None):
+    def _parseArgs(self, s, sclass=None, args=None):
         if not args:
             args = {}
         sparts = [x.strip() for x in s.split(" ") if len(x) > 0]
@@ -161,14 +160,14 @@ class BasicGame(object):
             if hasattr(self, name):
                 self.__dict__[name] = value
             else:
-                print "WARNING: undefined parameter '%s' for game! "%(name)
+                print "WARNING: undefined parameter '%s' for game! " % (name)
 
         # contains mappings to constructor (just a few defaults are known)
         self.sprite_constr = {'wall': (Immovable, {'color': DARKGRAY}, ['wall']),
                               'avatar': (MovingAvatar, {}, ['avatar']),
                               }
         # z-level of sprite types (in case of overlap)
-        self.sprite_order  = ['wall',
+        self.sprite_order = ['wall',
                               'avatar',
                               ]
         # contains instance lists
@@ -194,19 +193,19 @@ class BasicGame(object):
         self.time = 0
         self.ended = False
         self.num_sprites = 0
-        self.kill_list=[]
+        self.kill_list = []
 
     def buildLevel(self, lstr):
         from ontology import stochastic_effects
-        lines = [l for l in lstr.split("\n") if len(l)>0]
+        lines = [l for l in lstr.split("\n") if len(l) > 0]
         lengths = map(len, lines)
-        assert min(lengths)==max(lengths), "Inconsistent line lengths."
+        assert min(lengths) == max(lengths), "Inconsistent line lengths."
         self.width = lengths[0]
         self.height = len(lines)
         assert self.width > 1 and self.height > 1, "Level too small."
         # rescale pixels per block to adapt to the level
-        self.block_size = max(2,int(800./max(self.width, self.height)))
-        self.screensize = (self.width*self.block_size, self.height*self.block_size)
+        self.block_size = max(2, int(800. / max(self.width, self.height)))
+        self.screensize = (self.width * self.block_size, self.height * self.block_size)
 
         # set up resources
         for res_type, (sclass, args, _) in self.sprite_constr.iteritems():
@@ -222,12 +221,12 @@ class BasicGame(object):
         for row, l in enumerate(lines):
             for col, c in enumerate(l):
                 if c in self.char_mapping:
-                    pos = (col*self.block_size, row*self.block_size)
+                    pos = (col * self.block_size, row * self.block_size)
                     self._createSprite(self.char_mapping[c], pos)
                 elif c in self.default_mapping:
-                    pos = (col*self.block_size, row*self.block_size)
+                    pos = (col * self.block_size, row * self.block_size)
                     self._createSprite(self.default_mapping[c], pos)
-        self.kill_list=[]
+        self.kill_list = []
         for _, _, effect, _ in self.collision_eff:
             if effect in stochastic_effects:
                 self.is_stochastic = True
@@ -241,14 +240,14 @@ class BasicGame(object):
         res = []
         for col in range(self.width):
             for row in range(self.height):
-                r = pygame.Rect((col*self.block_size, row*self.block_size), (self.block_size, self.block_size))
+                r = pygame.Rect((col * self.block_size, row * self.block_size), (self.block_size, self.block_size))
                 free = True
                 for s in alls:
                     if r.colliderect(s.rect):
                         free = False
                         break
                 if free:
-                    res.append((col*self.block_size, row*self.block_size))
+                    res.append((col * self.block_size, row * self.block_size))
         return res
 
     def randomizeAvatar(self):
@@ -289,11 +288,11 @@ class BasicGame(object):
         self.num_sprites += 1
         return s
 
-    def _initScreen(self, size,headless):
+    def _initScreen(self, size, headless):
         if(headless):
             os.environ["SDL_VIDEODRIVER"] = "dummy"
             pygame.display.init()
-            self.screen = pygame.display.set_mode((1,1))
+            self.screen = pygame.display.set_mode((1, 1))
             self.background = pygame.Surface(size)
         else:
             from ontology import LIGHTGRAY
@@ -301,7 +300,7 @@ class BasicGame(object):
             self.screen = pygame.display.set_mode(size)
             self.background = pygame.Surface(size)
             self.background.fill(LIGHTGRAY)
-            self.screen.blit(self.background, (0,0))
+            self.screen.blit(self.background, (0, 0))
 
     def __iter__(self):
         """ Iterator over all sprites (ordered) """
@@ -316,9 +315,9 @@ class BasicGame(object):
         """ Abstract sprite groups are computed on demand only """
         deleted = len([s for s in self.kill_list if key in s.stypes])
         if key in self.sprite_groups:
-            return len(self.sprite_groups[key])-deleted
+            return len(self.sprite_groups[key]) - deleted
         else:
-            return len([s for s in self if key in s.stypes])-deleted
+            return len([s for s in self if key in s.stypes]) - deleted
 
     def getSprites(self, key):
         if key in self.sprite_groups:
@@ -361,7 +360,7 @@ class BasicGame(object):
                              'strength',
                              ]
 
-    def getFullState(self,as_string = False):
+    def getFullState(self, as_string=False):
         """ Return a dictionary that allows full reconstruction of the game state,
         e.g. for the load/save functionality. """
         # TODO: make sure this list is complete/correct -- maybe a naming convention would be easier,
@@ -392,7 +391,7 @@ class BasicGame(object):
               'objects': obs}
         return fs
 
-    def setFullState(self, fs,as_string = False):
+    def setFullState(self, fs, as_string=False):
         """ Reset the game to be exactly as defined in the fullstate dict. """
         self.reset()
         self.score = fs['score']
@@ -452,7 +451,7 @@ class BasicGame(object):
             if g2 == "EOS":
                 ss1, l1 = ss[g1]
                 for s1 in ss1:
-                    if not pygame.Rect((0,0), self.screensize).contains(s1.rect):
+                    if not pygame.Rect((0, 0), self.screensize).contains(s1.rect):
                         effect(s1, None, self, **kwargs)
                 continue
 
@@ -489,9 +488,8 @@ class BasicGame(object):
                         if s1 not in self.kill_list:
                             effect(s1, s2, self, **kwargs)
 
-
     def startGame(self, headless, persist_movie):
-        self._initScreen(self.screensize,headless)
+        self._initScreen(self.screensize, headless)
         pygame.display.flip()
         self.reset()
         clock = pygame.time.Clock()
@@ -512,7 +510,7 @@ class BasicGame(object):
                 from pygame.locals import K_1, K_2
                 if self.keystate[K_2] and self._lastsaved is not None:
                     self.setFullState(self._lastsaved)
-                    self._initScreen(self.screensize,headless)
+                    self._initScreen(self.screensize, headless)
                     pygame.display.flip()
                 if self.keystate[K_1]:
                     self._lastsaved = self.getFullState()
@@ -533,16 +531,16 @@ class BasicGame(object):
             #if(headless):
             if(persist_movie):
                 tmp_dir = "./temp/"
-                tmpl = '{tmp_dir}%09d-{name}-{g_id}.png'.format(i,tmp_dir = tmp_dir, name="VGDL-GAME", g_id=self.uiud)
-                pygame.image.save(self.screen, tmpl%i)
+                tmpl = '{tmp_dir}%09d-{name}-{g_id}.png'.format(i, tmp_dir=tmp_dir, name="VGDL-GAME", g_id=self.uiud)
+                pygame.image.save(self.screen, tmpl % i)
 
-                i+=1
+                i += 1
             VGDLSprite.dirtyrects = []
 
         if(persist_movie):
             print "Creating Movie"
-            self.video_file = "./videos/" +  str(self.uiud) + ".mp4"
-            subprocess.call(["ffmpeg","-y",  "-r", "30", "-b", "800", "-i", tmpl, self.video_file ])
+            self.video_file = "./videos/" + str(self.uiud) + ".mp4"
+            subprocess.call(["ffmpeg", "-y", "-r", "30", "-b", "800", "-i", tmpl, self.video_file])
             [os.remove(f) for f in glob.glob(tmp_dir + "*" + str(self.uiud) + "*")]
 
 
@@ -558,21 +556,18 @@ class BasicGame(object):
         pygame.time.wait(50)
         return win, self.score
 
-
-
     def getPossibleActions(self):
         return self.getAvatars()[0].declare_possible_actions()
 
     def startGameExternalPlayer(self, headless, persist_movie, movie_dir):
-        self._initScreen(self.screensize,headless)
+        self._initScreen(self.screensize, headless)
         pygame.display.flip()
         self.reset()
         self.clock = pygame.time.Clock()
         self.tmp_dir = movie_dir
-        self.video_tmpl = '{tmp_dir}%09d-{name}-{g_id}.png'.format(self.time,tmp_dir = self.tmp_dir, name="VGDL-GAME", g_id=self.uiud)
+        self.video_tmpl = '{tmp_dir}%09d-{name}-{g_id}.png'.format(self.time, tmp_dir=self.tmp_dir, name="VGDL-GAME", g_id=self.uiud)
 
-
-    def tick(self,action,headless=True, persist_movie=False):
+    def tick(self, action, headless=True, persist_movie=False):
 
         win = False
 
@@ -587,7 +582,7 @@ class BasicGame(object):
 
         self.keystate[action] = 1
 
-            # load/save handling
+        # load/save handling
         #if self.load_save_enabled:
         #        from pygame.locals import K_1, K_2
         #        if self.keystate[K_2] and self._lastsaved is not None:
@@ -597,13 +592,13 @@ class BasicGame(object):
         #        if self.keystate[K_1]:
         #            self._lastsaved = self.getFullState()
 
-            # termination criteria
+        # termination criteria
         for t in self.terminations:
-                self.ended, win = t.isDone(self)
-                if self.ended:
-                    return win, self.score
+            self.ended, win = t.isDone(self)
+            if self.ended:
+                return win, self.score
             # update sprites
-        #print action
+            #print action
 
         for s in self:
             s.update(self)
@@ -618,29 +613,24 @@ class BasicGame(object):
         return None, None
 
 
-
-
-
-
-
 class VGDLSprite(object):
     """ Base class for all sprite types. """
     name = None
-    COLOR_DISC = [20,80,140,200]
+    COLOR_DISC = [20, 80, 140, 200]
     dirtyrects = []
 
-    is_static= False
-    only_active =False
-    is_avatar= False
+    is_static = False
+    only_active = False
+    is_avatar = False
     is_stochastic = False
-    color    = None
-    cooldown = 0 # pause ticks in-between two moves
-    speed    = None
-    mass     = 1
-    physicstype=None
-    shrinkfactor=0
+    color = None
+    cooldown = 0  # pause ticks in-between two moves
+    speed = None
+    mass = 1
+    physicstype = None
+    shrinkfactor = 0
 
-    def __init__(self, pos, size=(10,10), color=None, speed=None, cooldown=None, physicstype=None, **kwargs):
+    def __init__(self, pos, size=(10, 10), color=None, speed=None, cooldown=None, physicstype=None, **kwargs):
         from ontology import GridPhysics
         self.rect = pygame.Rect(pos, size)
         self.lastrect = self.rect
@@ -649,12 +639,12 @@ class VGDLSprite(object):
         self.physics.gridsize = size
         self.speed = speed or self.speed
         self.cooldown = cooldown or self.cooldown
-        self.color =color or self.color or (choice(self.COLOR_DISC), choice(self.COLOR_DISC), choice(self.COLOR_DISC))
+        self.color = color or self.color or (choice(self.COLOR_DISC), choice(self.COLOR_DISC), choice(self.COLOR_DISC))
         for name, value in kwargs.iteritems():
             try:
                 self.__dict__[name] = value
             except:
-                print "WARNING: undefined parameter '%s' for sprite '%s'! "%(name, self.__class__.__name__)
+                print "WARNING: undefined parameter '%s' for sprite '%s'! " % (name, self.__class__.__name__)
         # how many timesteps ago was the last move?
         self.lastmove = 0
 
@@ -672,27 +662,27 @@ class VGDLSprite(object):
     def _updatePos(self, orientation, speed=None):
         if speed is None:
             speed = self.speed
-        if not(self.cooldown > self.lastmove or abs(orientation[0])+abs(orientation[1])==0):
-            self.rect = self.rect.move((orientation[0]*speed, orientation[1]*speed))
+        if not(self.cooldown > self.lastmove or abs(orientation[0]) + abs(orientation[1]) == 0):
+            self.rect = self.rect.move((orientation[0] * speed, orientation[1] * speed))
             self.lastmove = 0
 
     def _velocity(self):
         """ Current velocity vector. """
-        if self.speed is None or self.speed==0 or not hasattr(self, 'orientation'):
-            return (0,0)
+        if self.speed is None or self.speed == 0 or not hasattr(self, 'orientation'):
+            return (0, 0)
         else:
-            return (self.orientation[0]*self.speed, self.orientation[1]*self.speed)
+            return (self.orientation[0] * self.speed, self.orientation[1] * self.speed)
 
     @property
     def lastdirection(self):
-        return (self.rect[0]-self.lastrect[0], self.rect[1]-self.lastrect[1])
+        return (self.rect[0] - self.lastrect[0], self.rect[1] - self.lastrect[1])
 
     def _draw(self, game):
         from ontology import LIGHTGREEN
         screen = game.screen
         if self.shrinkfactor != 0:
-            shrunk = self.rect.inflate(-self.rect.width*self.shrinkfactor,
-                                       -self.rect.height*self.shrinkfactor)
+            shrunk = self.rect.inflate(-self.rect.width * self.shrinkfactor,
+                                       -self.rect.height * self.shrinkfactor)
         else:
             shrunk = self.rect
 
@@ -715,13 +705,13 @@ class VGDLSprite(object):
         """ Draw progress bars on the bottom third of the sprite """
         from ontology import BLACK
         tot = len(self.resources)
-        barheight = rect.height/3.5/tot
-        offset = rect.top+2*rect.height/3.
+        barheight = rect.height / 3.5 / tot
+        offset = rect.top + 2 * rect.height / 3.
         for r in sorted(self.resources.keys()):
-            wiggle = rect.width/10.
-            prop = max(0,min(1,self.resources[r] / float(game.resources_limits[r])))
-            filled = pygame.Rect(rect.left+wiggle/2, offset, prop*(rect.width-wiggle), barheight)
-            rest   = pygame.Rect(rect.left+wiggle/2+prop*(rect.width-wiggle), offset, (1-prop)*(rect.width-wiggle), barheight)
+            wiggle = rect.width / 10.
+            prop = max(0, min(1, self.resources[r] / float(game.resources_limits[r])))
+            filled = pygame.Rect(rect.left + wiggle / 2, offset, prop * (rect.width - wiggle), barheight)
+            rest = pygame.Rect(rect.left + wiggle / 2 + prop * (rect.width - wiggle), offset, (1 - prop) * (rect.width - wiggle), barheight)
             screen.fill(game.resources_colors[r], filled)
             screen.fill(BLACK, rest)
             offset += barheight
@@ -734,21 +724,22 @@ class VGDLSprite(object):
             VGDLSprite.dirtyrects.append(r)
 
     def __repr__(self):
-        return self.name+" at (%s,%s)"%(self.rect.left, self.rect.top)
+        return self.name + " at (%s,%s)" % (self.rect.left, self.rect.top)
 
 
 class Avatar(object):
     """ Abstract superclass of all avatars. """
-    shrinkfactor=0.15
+    shrinkfactor = 0.15
 
     def __init__(self):
         self.actions = self.declare_possible_actions()
 
+
 class Resource(VGDLSprite):
     """ A special type of object that can be present in the game in two forms, either
     physically sitting around, or in the form of a counter inside another sprite. """
-    value=1
-    limit=2
+    value = 1
+    limit = 2
     res_type = None
 
     @property
@@ -758,8 +749,10 @@ class Resource(VGDLSprite):
         else:
             return self.res_type
 
+
 class Termination(object):
     """ Base class for all termination criteria. """
+
     def isDone(self, game):
         """ returns whether the game is over, with a win/lose flag """
         from pygame.locals import K_ESCAPE, QUIT

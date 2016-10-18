@@ -20,6 +20,9 @@ from vgdl.plotting import featurePlot, addTrajectory
     
 def someEpisodes(game_env, net, discountFactor=0.99, maxSteps=100, avgOver=1, returnEvents=False, exploretoo=True):
     """ Return the fitness value for one episode of play, given the policy defined by a neural network. """
+    import pdb
+    pdb.set_trace()
+
     task = GameTask(game_env)
     game_env.recordingEnabled = True        
     game_env.reset()        
@@ -278,11 +281,11 @@ def test6():
 
     
 if __name__ == '__main__':
-    #test1()
+    test1()
     #test2()
     #test3()
     #test4()
     #test5()
-    test6()
+    #test6()
     
     

@@ -8,16 +8,17 @@ This interface is a generic one for interfacing with RL agents.
 '''
 
 from numpy import zeros
-import pygame    
+import pygame
 from ontology import BASEDIRS
 from core import VGDLSprite
-from stateobs import StateObsHandler 
+from stateobs import StateObsHandler
 import argparse
 
 OBSERVATION_LOCAL = 'local'
 OBSERVATION_GLOBAL = 'global'
 
-class RLEnvironment( StateObsHandler ):
+
+class RLEnvironment(StateObsHandler):
     """ Wrapping a VGDL game with a generic interface suitable for reinforcement learning.
         Currently limited to single avatar games, with gridphysics, where all other sprites are static.
     """
@@ -27,29 +28,29 @@ class RLEnvironment( StateObsHandler ):
 
     # If the visualization is enabled, all actions will be reflected on the screen.
     visualize = False
-    
+
     # In that case, optionally wait a few milliseconds between actions?
     actionDelay = 0
-    
+
     # Recording events (in slightly redundant format state-action-nextstate)
     recordingEnabled = False
-        
+
     def __init__(self, gameDef, levelDef, observationType=OBSERVATION_LOCAL, visualize=False, actionset=BASEDIRS, **kwargs):
-        game = _createVGDLGame( gameDef, levelDef )
+        game = _createVGDLGame(gameDef, levelDef)
         StateObsHandler.__init__(self, game, **kwargs)
         self._actionset = actionset
         self.visualize = visualize
         self._initstate = self.getState()
-        # 
+        #
         # Total output dimensions are:
         #   #object_types * ( #neighbours + center )
         #
         # Note that _obstypes is an array of arrays for object types and their positions, e.g.
         # {
-        #  'wall': [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0)], 
+        #  'wall': [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0)],
         #  'goal': [(4, 1)]
         # }
-        self.observationType=observationType
+        self.observationType = observationType
         if observationType == OBSERVATION_LOCAL:
             # Array of grid indices around the agent
             ns = self._stateNeighbors(self._initstate)
@@ -59,29 +60,29 @@ class RLEnvironment( StateObsHandler ):
             self.outdim = [game.height, game.width]
             for y in range(0, game.height):
                 for x in range(0, game.width):
-                    self.nsAllCells.append( (x, y) )
-        self._postInitReset()                
+                    self.nsAllCells.append((x, y))
+        self._postInitReset()
 
     # Get definition of the observation data expected
     def observationSpec(self):
-        return{ 'scheme':'Doubles', 'size':self.outdim }
+        return{'scheme': 'Doubles', 'size': self.outdim}
 
     # Get definition of the actions that are accepted
     def actionSpec(self):
-        return{ 'scheme':'Integer', 'N':4 }       
+        return{'scheme': 'Integer', 'N': 4}
 
     # Reset the game between episodes.
     # Currently it is not recommended that this is called hundreds of times
-    # cause things start to slow down exponentially (being looked at). The 
+    # cause things start to slow down exponentially (being looked at). The
     # recommended process is to re-create this class for each episode
     # (i.e. call the constructor for this class each episode) and call softReset
-    # to get the starting observations. 
+    # to get the starting observations.
     def reset(self):
         self._postInitReset(True)
         return self.step(None)
 
     # Reset after constructor
-    # Like reset() but does not re-initialise state. This can be called after the 
+    # Like reset() but does not re-initialise state. This can be called after the
     # class has been constructed to get the starting observations
     def softReset(self):
         self._postInitReset(False)
@@ -97,21 +98,21 @@ class RLEnvironment( StateObsHandler ):
             self.setState(self._initstate)
 
         # if no avatar starting location is specified, the default one will be to place it randomly
-        self._game.randomizeAvatar()    
-            
+        self._game.randomizeAvatar()
+
         self._game.kill_list = []
         if self.visualize:
-            pygame.display.flip()    
+            pygame.display.flip()
         if self.recordingEnabled:
             self._last_state = self.getState()
-            self._allEvents = []            
+            self._allEvents = []
 
     def close():
         pass
 
     def _isDone(self):
         # remember reward if the final state ends the game
-        for t in self._game.terminations[1:]: 
+        for t in self._game.terminations[1:]:
             # Convention: the first criterion is for keyboard-interrupt termination
             ended, win = t.isDone(self._game)
             if ended:
@@ -128,7 +129,7 @@ class RLEnvironment( StateObsHandler ):
         else:
             pos = state
 
-        res = zeros(self.outdim[0]*self.outdim[1])
+        res = zeros(self.outdim[0] * self.outdim[1])
         # Get sensor data given current state (i.e. position)
         # and whether local state or whole game state is required
         if self.observationType == OBSERVATION_LOCAL:
@@ -137,7 +138,7 @@ class RLEnvironment( StateObsHandler ):
             # Right) around avatar. First set of ints represent the first
             # object type in _obstypes, the next len(BASEDIRS) ints are for
             # the next object type, etc.
-            # e.g. where object type A is present left and below, 
+            # e.g. where object type A is present left and below,
             # and object type B is not visible, the observation would be:
             # 00110 00000
             ns = [pos] + self._stateNeighbors(state)
@@ -150,8 +151,8 @@ class RLEnvironment( StateObsHandler ):
         else:
             # Returns 2D array of ints where bits set represent object types
             # present at that position. Bit 1 = Avatar. The other bits are set
-            # in order that they are set in _obstypes (stateobs.py) 
-            # e.g. for avatar (1) in walled area (2) with goal at top right (4) 
+            # in order that they are set in _obstypes (stateobs.py)
+            # e.g. for avatar (1) in walled area (2) with goal at top right (4)
             # 222222
             # 200042
             # 200002
@@ -160,44 +161,44 @@ class RLEnvironment( StateObsHandler ):
             ns = self.nsAllCells
             for i, n in enumerate(ns):
                 # check if the avatar is here
-                if n[0]==pos[0] and n[1]==pos[1]:
+                if n[0] == pos[0] and n[1] == pos[1]:
                     res[i] = 1
                 os = self._rawSensor(n)
-                for s in range(0,len(os)):
-                    if os[s]==True:
-                        res[i] = int(res[i]) | (2<<s)
+                for s in range(0, len(os)):
+                    if os[s] == True:
+                        res[i] = int(res[i]) | (2 << s)
         return res
 
     def _performAction(self, action, onlyavatar=False):
         """ Action is an index for the actionset.  """
         if action is None:
-            return   
-        
+            return
+
         # take action and compute consequences
         # replace the method that reads multiple action keys with a fn that just
         # returns the currently desired action
-        self._avatar._readMultiActions = lambda *x: [self._actionset[action]]        
+        self._avatar._readMultiActions = lambda *x: [self._actionset[action]]
         if self.visualize:
             self._game._clearAll(self.visualize)
-        
-        # update sprites 
+
+        # update sprites
         if onlyavatar:
             self._avatar.update(self._game)
         else:
             for s in self._game:
                 s.update(self._game)
-        
-        # handle collision effects                
+
+        # handle collision effects
         self._game._eventHandling()
         if self.visualize:
             self._game._clearAll(self.visualize)
-        
+
         # update screen
         if self.visualize:
-            self._game._drawAll()                            
+            self._game._drawAll()
             pygame.display.update(VGDLSprite.dirtyrects)
             VGDLSprite.dirtyrects = []
-            pygame.time.wait(self.actionDelay)         
+            pygame.time.wait(self.actionDelay)
 
         if self.recordingEnabled:
             self._previous_state = self._last_state
@@ -206,9 +207,9 @@ class RLEnvironment( StateObsHandler ):
 
     def step(self, action):
         if action != None:
-            self._performAction(action) 
+            self._performAction(action)
 
-        observation = self._getSensors(None) #state)
+        observation = self._getSensors(None)  # state)
         (ended, won) = self._isDone()
         if ended:
             pcontinue = 0
@@ -219,13 +220,15 @@ class RLEnvironment( StateObsHandler ):
         else:
             pcontinue = 1
             reward = 0
-        return{ 'observation':observation, 'reward':reward, 'pcontinue':pcontinue }
+        return{'observation': observation, 'reward': reward, 'pcontinue': pcontinue}
+
 
 def defMaze():
     from examples.gridphysics.mazes import maze_game, maze_level_1
-    return( maze_game, maze_level_1 )
+    return(maze_game, maze_level_1)
 
-def _createVGDLGame( gameSpec, levelSpec ):
+
+def _createVGDLGame(gameSpec, levelSpec):
     import uuid
     from vgdl.core import VGDLParser
     # parse, run and play.
@@ -234,16 +237,18 @@ def _createVGDLGame( gameSpec, levelSpec ):
     game.uiud = uuid.uuid4()
     return game
 
+
 def playTestMaze():
-    game = _createVGDLGame( *defMaze() )
+    game = _createVGDLGame(*defMaze())
     headless = False
     persist_movie = False
-    game.startGame(headless,persist_movie)
+    game.startGame(headless, persist_movie)
+
 
 # Test some of the observation and action specs
 def testSpecs():
-    game = _createVGDLGame( *defMaze() )
-    rle = RLEnvironment( *defMaze() )
+    game = _createVGDLGame(*defMaze())
+    rle = RLEnvironment(*defMaze())
     if rle.actionSpec() != {'scheme': 'Integer', 'N': 4}:
         print "FAILED actionSpec"
         print rle.actionSpec()
@@ -251,8 +256,9 @@ def testSpecs():
         print "FAILED observationSpec"
         print rle.observationSpec()
 
+
 # Verify that observation received matches target observation
-def _verify( obs, targetObs ):
+def _verify(obs, targetObs):
     if obs["pcontinue"] != targetObs["pcontinue"]:
         print "FAILED pcontinue"
         return False
@@ -260,13 +266,13 @@ def _verify( obs, targetObs ):
         print "FAILED reward"
         return False
     match = True
-    i=0 
+    i = 0
     for ob in targetObs["observation"]:
         if float(obs["observation"][i]) != float(targetObs["observation"][i]):
             match = False
-        i = i+1
+        i = i + 1
 
-    if match==False:
+    if match == False:
         print ""
         print "FAILED observation"
         print obs["observation"]
@@ -275,54 +281,57 @@ def _verify( obs, targetObs ):
         return False
     return True
 
+
 # simple maze test, moved to goal and win
-def createRLMaze( obsType=OBSERVATION_LOCAL ):
-    return RLEnvironment( *defMaze(), observationType=obsType )
+def createRLMaze(obsType=OBSERVATION_LOCAL):
+    return RLEnvironment(*defMaze(), observationType=obsType)
+
 
 def testMaze(numEpisodes, numJogOnSpot, verify, reuseGame, obsType):
-    rle = createRLMaze( obsType )
+    rle = createRLMaze(obsType)
 
     # uncomment following two lines to see the walk (causes internal warning)
     #rle.visualize = True
-    for i in range(0,numEpisodes):
-       
+    for i in range(0, numEpisodes):
+
         if reuseGame:
-            # Purely for testing: reuse the game and by calling _postInitReset(True).
-            # This should be faster but self.setState(_initstate) in _postInitReset() 
-            # causes the game to slow down with hunreds of calls.
-             rle._postInitReset(True)
+        # Purely for testing: reuse the game and by calling _postInitReset(True).
+        # This should be faster but self.setState(_initstate) in _postInitReset()
+        # causes the game to slow down with hunreds of calls.
+            rle._postInitReset(True)
         else:
             # Re-create the game.
-            rle = createRLMaze( obsType )
-        
-        res = rle.step(0) #up
+            rle = createRLMaze(obsType)
+
+        res = rle.step(0)  # up
         if verify:
-            _verify( res, {'pcontinue': 1, 'reward': 0, 'observation': [ 0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]} )
-        res = rle.step(1) #left (there's a wall so expect no change in observations)
+            _verify(res, {'pcontinue': 1, 'reward': 0, 'observation': [0., 0., 1., 0., 0., 0., 0., 0., 0., 0.]})
+        res = rle.step(1)  # left (there's a wall so expect no change in observations)
         if verify:
-            _verify( res, {'pcontinue': 1, 'reward': 0, 'observation': [ 0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]} )
-        res = rle.step(3) #right
+            _verify(res, {'pcontinue': 1, 'reward': 0, 'observation': [0., 0., 1., 0., 0., 0., 0., 0., 0., 0.]})
+        res = rle.step(3)  # right
         if verify:
-            _verify( res, {'pcontinue': 1, 'reward': 0, 'observation': [ 0.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0.]} )
-        
-        # Hop backwards and forwards 
-        for j in range (0,int(numJogOnSpot)):
-            res = rle.step(1) #left
+            _verify(res, {'pcontinue': 1, 'reward': 0, 'observation': [0., 0., 0., 1., 0., 0., 0., 0., 0., 0.]})
+
+        # Hop backwards and forwards
+        for j in range(0, int(numJogOnSpot)):
+            res = rle.step(1)  # left
             if verify:
-                _verify( res, {'pcontinue': 1, 'reward': 0, 'observation': [ 0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]} )
-            res = rle.step(3) #right
+                _verify(res, {'pcontinue': 1, 'reward': 0, 'observation': [0., 0., 1., 0., 0., 0., 0., 0., 0., 0.]})
+            res = rle.step(3)  # right
             if verify:
-                _verify( res, {'pcontinue': 1, 'reward': 0, 'observation': [ 0.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0.]} )
-     
-        res = rle.step(3) #right
+                _verify(res, {'pcontinue': 1, 'reward': 0, 'observation': [0., 0., 0., 1., 0., 0., 0., 0., 0., 0.]})
+
+        res = rle.step(3)  # right
         if verify:
-            _verify( res, {'pcontinue': 1, 'reward': 0, 'observation': [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]} )
-        res = rle.step(3) #right
+            _verify(res, {'pcontinue': 1, 'reward': 0, 'observation': [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]})
+        res = rle.step(3)  # right
         if verify:
-            _verify( res, {'pcontinue': 1, 'reward': 0, 'observation': [ 0.,  0.,  0.,  0.,  1.,  0.,  1.,  0.,  0.,  0.]} )
-        res = rle.step(0) #up
+            _verify(res, {'pcontinue': 1, 'reward': 0, 'observation': [0., 0., 0., 0., 1., 0., 1., 0., 0., 0.]})
+        res = rle.step(0)  # up
         if verify:
-            _verify( res, {'pcontinue': 0, 'reward': 1, 'observation': [ 0.,  1.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.]} )
+            _verify(res, {'pcontinue': 0, 'reward': 1, 'observation': [0., 1., 0., 0., 1., 0., 0., 0., 0., 0.]})
+
 
 def defaultTest():
     print("testSpecs()")
@@ -355,12 +364,10 @@ if __name__ == "__main__":
 
     if args.profile:
         import cProfile
-        command = 'testMaze('+str(args.numEpisodes)+','+str(args.jog_on_spot)+',False,'+str(args.reuse_game)+',"'+args.observation_type+'")'
+        command = 'testMaze(' + str(args.numEpisodes) + ',' + str(args.jog_on_spot) + ',False,' + str(args.reuse_game) + ',"' + args.observation_type + '")'
         cProfile.run(command)
     elif args.play_test:
         playTestMaze()
     else:
         defaultTest()
         testMaze(args.numEpisodes, args.jog_on_spot, True, args.reuse_game, args.observation_type)
-
-
